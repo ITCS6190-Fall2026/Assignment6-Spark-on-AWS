@@ -9,12 +9,6 @@ and writes Parquet, a **Glue crawler** puts the result in the Data Catalog, and 
 it with SQL in **Athena**. The data is the RideCity trips of Assignment #4, so you already
 know it.
 
-```
-trips_history.csv, zones.csv  ->  S3 raw/  ->  Glue Spark job  ->  S3 processed/ (Parquet)
-                                                                        |
-                                              Athena (SQL)  <-  Glue crawler + Data Catalog
-```
-
 ---
 
 ## Before you start
