@@ -9,9 +9,6 @@ and writes Parquet, a **Glue crawler** puts the result in the Data Catalog, and 
 it with SQL in **Athena**. The data is the RideCity trips of Assignment #4, so you already
 know it.
 
-**Optional, worth 2 extra points. Opens Tuesday, November 24. Due by 11:59 pm on Tuesday,
-December 8**, on Canvas. Work individually. Plan for 4 to 6 hours.
-
 ```
 trips_history.csv, zones.csv  ->  S3 raw/  ->  Glue Spark job  ->  S3 processed/ (Parquet)
                                                                         |
