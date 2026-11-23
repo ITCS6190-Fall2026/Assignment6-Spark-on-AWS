@@ -9,6 +9,19 @@ and writes Parquet, a **Glue crawler** puts the result in the Data Catalog, and 
 it with SQL in **Athena**. The data is the RideCity trips of Assignment #4, so you already
 know it.
 
+**There is no code to write.** The Spark job and the SQL queries are given. Your work is on
+AWS: storage, permissions, running the job, the catalog, the queries, the costs and the
+cleanup.
+
+**Optional, worth 2 extra points. Opens Tuesday, November 24. Due by 11:59 pm on Tuesday,
+December 8**, on Canvas. Work individually. Plan for about 3 hours.
+
+```
+trips_history.csv, zones.csv  ->  S3 raw/  ->  Glue Spark job  ->  S3 processed/ (Parquet)
+                                                                        |
+                                              Athena (SQL)  <-  Glue crawler + Data Catalog
+```
+
 ---
 
 ## Before you start
@@ -32,8 +45,8 @@ the existing role `LabRole` wherever a role is asked. The rest is the same.
 | Path | What it is |
 | ---- | ---------- |
 | `datagen.py` | generates the trips and the zones from a seed (plain Python) |
-| `glue_job.py` | the Spark job: setup, schemas, reading and writing are given, two functions are yours |
-| `athena/q1.sql`, `q2.sql`, `q3.sql` | the three queries you write |
+| `glue_job.py` | the Spark job, complete: it joins the trips with the zones and writes two Parquet datasets |
+| `athena/q1.sql`, `q2.sql`, `q3.sql` | the three queries you run in Athena |
 | `results/` | where you save the result of each query, downloaded from Athena |
 | `screenshots/` | the five screenshots the report asks for |
 | `REPORT.md` | the report template you fill in |
@@ -57,22 +70,21 @@ It writes `data/trips_history.csv` (60,000 trips of September 2026) and `data/zo
 (25 zones), and prints **your day**, which query 3 uses. Write it down. The `data/` folder
 is not committed.
 
-### 3. Complete the job and test it on your machine
+### 3. Read the job
 
-`glue_job.py` is a plain PySpark script, the same code you would give to `spark-submit`.
-Complete the two functions marked TODO: `enrich` (join the trips with the zones and add
-three columns) and `zone_daily` (one row per day and zone). Each docstring says exactly
-what to produce.
+Open `glue_job.py`. It is a plain PySpark script, the same code you would give to
+`spark-submit`, with nothing specific to Glue. It reads the two CSV files from `--input`,
+joins the trips with the zones, and writes to `--output`:
 
-Test it before going to AWS, where every run takes a minute to start:
+- `trips/`: one row per trip, in Parquet, **partitioned by `pickup_date`** (one folder per day)
+- `zone_daily/`: one row per day and pickup zone, with trips, revenue and averages
+
+If you have PySpark on your machine (or the spark-master container of any hands-on), you
+can try it first, but this is optional:
 
 ```bash
-pip install pyspark            # needs Java 17; or use the spark-master container of any hands-on
 python3 glue_job.py --input data --output output
 ```
-
-It must print `trips written: 60000   zone_daily rows: 750`, and `output/trips/` must
-contain one folder per day (`pickup_date=2026-09-01`, and so on).
 
 ### 4. S3: one bucket, three prefixes
 
@@ -104,11 +116,15 @@ choose your `glue_job.py`. Then, in **Job details**:
 | Job parameters (under Advanced properties) | `--input` = `s3://ridecity-<your student ID>/raw` and `--output` = `s3://ridecity-<your student ID>/processed` |
 
 Save and **Run**. In the **Runs** tab, wait for **Succeeded** (two to three minutes) and
-open the **Output logs**: the two lines the job prints must be the same as on your machine.
-In S3, `processed/trips/` now has thirty `pickup_date=...` folders.
+open the **Output logs**: the job prints `trips written: 60000   zone_daily rows: 750` and
+your total revenue. Write down the duration of the run.
 
-If the run fails, read the **Error logs** link of the run, fix the script on your machine,
-test it there, upload it again and run again.
+In S3, `processed/trips/` now has thirty `pickup_date=...` folders. Select the `raw/`
+prefix, then **Actions**, **Calculate total size**; do the same for `processed/`. Write
+down the two sizes.
+
+If the run fails, read the **Error logs** link of the run. The usual causes are a wrong
+path in the job parameters, the wrong role, or the wrong region.
 
 ### 7. Glue: catalog the result
 
@@ -124,12 +140,12 @@ Open Athena. The first time, set the query result location to
 `s3://ridecity-<your student ID>/athena-results/` (Settings). Choose the database
 `ridecity_db`.
 
-Write the three queries described in `athena/q1.sql`, `q2.sql` and `q3.sql`. For each one:
-save the SQL in its file, and use **Download results** to save the result as
-`results/q1.csv`, `results/q2.csv` and `results/q3.csv`.
+Run the three queries of `athena/q1.sql`, `q2.sql` and `q3.sql` (in `q3.sql`, replace
+`2026-09-DD` with your day first). For each one, use **Download results** to save the
+result as `results/q1.csv`, `results/q2.csv` and `results/q3.csv`, and write down the
+**Data scanned** value Athena shows.
 
-Then the experiment. Run these two queries and write down the **Data scanned** value Athena
-shows for each:
+Then the experiment. Run these two queries and write down the **Data scanned** value of each:
 
 ```sql
 SELECT ROUND(SUM(fare), 2) FROM trips;
@@ -154,12 +170,3 @@ link to your repository on Canvas.
 3. `3_tables.png`: the two tables in `ridecity_db`.
 4. `4_athena_q3.png`: query 3 in Athena with its result and Data scanned.
 5. `5_cleanup.png`: the S3 bucket list after the cleanup.
-
----
-
-## Rules
-
-In `glue_job.py`, the DataFrame API only: no RDD operations, no `collect()` followed by
-Python loops, no pandas. Do not use Glue-specific classes (`GlueContext`, `DynamicFrame`):
-the point is that plain Spark code runs on Glue. Do not change the given parts of the
-script.

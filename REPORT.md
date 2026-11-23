@@ -32,7 +32,9 @@ per DPU-hour; a G.1X worker is 1 DPU; look up the current price for `us-east-1`)
 
 
 
-What did you have to change in the script to move it from your machine to Glue? Why?
+In the hands-ons you started a Spark cluster with Docker before every job. What did you
+have to start or manage here, and what did Glue do for you? Name one thing you give up in
+exchange.
 
 
 
@@ -41,7 +43,12 @@ What did you have to change in the script to move it from your machine to Glue? 
 ![Tables](screenshots/3_tables.png)
 ![Query 3](screenshots/4_athena_q3.png)
 
-The result of each query is in `results/`. One sentence on what each result tells you:
+Size of `raw/` and size of `processed/` in S3 (Calculate total size):
+
+
+
+The result of each query is in `results/`. One sentence on what each result tells you, and
+its Data scanned:
 
 - Query 1:
 - Query 2:
@@ -78,4 +85,5 @@ What you deleted, in order:
 ## Problems
 
 Any error you hit on AWS and how you fixed it, or "none":
+
 

@@ -1,7 +1,10 @@
-"""Assignment #6: RideCity batch job, written to run unchanged on AWS Glue and on your machine.
+"""Assignment #6: RideCity batch job. It runs unchanged on AWS Glue and on your machine.
+
+The job is given complete: you do not write Spark code in this assignment. Read it, because
+the report asks what it does.
 
 On AWS Glue (job parameters):      --input s3://<your-bucket>/raw   --output s3://<your-bucket>/processed
-On your machine, to test first:    python glue_job.py --input data --output output
+On your machine (optional):        python3 glue_job.py --input data --output output
 
 It reads trips_history.csv and zones.csv from <input>, and writes two Parquet datasets:
 
@@ -41,50 +44,35 @@ ZONES_SCHEMA = StructType([
 
 
 def enrich(trips, zones):
-    """TODO 1. One row per trip, with the pickup zone's name and borough and three derived columns.
-
-    Return the trips joined with the zones on the PICKUP zone (left join; the zones table is
-    tiny, so broadcast it), keeping every column of trips and adding:
-
-      zone_name, borough   of the pickup zone
-      pickup_date          the date of pickup_ts (a date, not a string)
-      pickup_hour          the hour of pickup_ts, 0 to 23 (an integer)
-      fare_per_km          fare / distance_km, rounded to 2 decimals
-
-    The result must not contain a zone_id column.
-    """
-    return None
+    """One row per trip, with the pickup zone's name and borough and three derived columns."""
+    z = F.broadcast(zones.withColumnRenamed("zone_id", "pickup_zone"))
+    return (trips.join(z, "pickup_zone", "left")
+            .withColumn("pickup_date", F.to_date("pickup_ts"))
+            .withColumn("pickup_hour", F.hour("pickup_ts"))
+            .withColumn("fare_per_km", F.round(F.col("fare") / F.col("distance_km"), 2)))
 
 
 def zone_daily(enriched):
-    """TODO 2. One row per pickup_date and pickup zone.
-
-    Group the enriched trips by pickup_date, pickup_zone, zone_name and borough, and compute:
-
-      trips             number of trips
-      revenue           sum of fare, rounded to 2 decimals
-      avg_fare          average fare, rounded to 2 decimals
-      avg_distance_km   average distance_km, rounded to 2 decimals
-    """
-    return None
+    """One row per pickup_date and pickup zone."""
+    return (enriched.groupBy("pickup_date", "pickup_zone", "zone_name", "borough")
+            .agg(F.count("*").alias("trips"),
+                 F.round(F.sum("fare"), 2).alias("revenue"),
+                 F.round(F.avg("fare"), 2).alias("avg_fare"),
+                 F.round(F.avg("distance_km"), 2).alias("avg_distance_km")))
 
 
 trips = spark.read.csv(f"{src}/trips_history.csv", header=True, schema=TRIPS_SCHEMA,
                        timestampFormat="yyyy-MM-dd HH:mm:ss")
 zones = spark.read.csv(f"{src}/zones.csv", header=True, schema=ZONES_SCHEMA)
 
-enriched = enrich(trips, zones)
-daily = zone_daily(enriched) if enriched is not None else None
+enriched = enrich(trips, zones).cache()
+daily = zone_daily(enriched)
 
-if enriched is None or daily is None:
-    print("glue_job: not implemented yet (enrich or zone_daily returned None)")
-else:
-    enriched.cache()
-    # partitionBy puts each day in its own folder, pickup_date=2026-09-01/ and so on; a query
-    # that filters on pickup_date then reads only the folders it needs.
-    enriched.repartition("pickup_date").write.mode("overwrite").partitionBy("pickup_date").parquet(f"{dst}/trips")
-    daily.coalesce(1).write.mode("overwrite").parquet(f"{dst}/zone_daily")
-    print(f"trips written: {enriched.count()}   zone_daily rows: {daily.count()}")
-    print(f"total revenue: {enriched.agg(F.round(F.sum('fare'), 2)).first()[0]}")
+# partitionBy puts each day in its own folder, pickup_date=2026-09-01/ and so on; a query
+# that filters on pickup_date then reads only the folders it needs.
+enriched.repartition("pickup_date").write.mode("overwrite").partitionBy("pickup_date").parquet(f"{dst}/trips")
+daily.coalesce(1).write.mode("overwrite").parquet(f"{dst}/zone_daily")
+print(f"trips written: {enriched.count()}   zone_daily rows: {daily.count()}")
+print(f"total revenue: {enriched.agg(F.round(F.sum('fare'), 2)).first()[0]}")
 
 spark.stop()
