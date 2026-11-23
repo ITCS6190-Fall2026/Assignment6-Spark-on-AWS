@@ -13,15 +13,6 @@ know it.
 AWS: storage, permissions, running the job, the catalog, the queries, the costs and the
 cleanup.
 
-**Optional, worth 2 extra points. Opens Tuesday, November 24. Due by 11:59 pm on Tuesday,
-December 8**, on Canvas. Work individually. Plan for about 3 hours.
-
-```
-trips_history.csv, zones.csv  ->  S3 raw/  ->  Glue Spark job  ->  S3 processed/ (Parquet)
-                                                                        |
-                                              Athena (SQL)  <-  Glue crawler + Data Catalog
-```
-
 ---
 
 ## Before you start
