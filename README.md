@@ -20,8 +20,10 @@ cleanup.
 - **An AWS account on the free plan.** New accounts get credits and cannot be charged while
   on the free plan; S3, Glue and Athena are included. Signing up asks for a card and a
   phone number. The whole assignment uses well under 1 dollar of credits.
-- **One region for everything: US East (N. Virginia), `us-east-1`.** Check the region
-  selector at the top right of the console before each step.
+- **Pick one region and use it for every step.** The region your console opens in is
+  fine (for example US East (Ohio), `us-east-2`). Write it down, and check the region
+  selector at the top right of the console before each step: the job, the crawler and
+  the tables you create in one region do not appear in another.
 - **Everything is done in the AWS console.** You do not need access keys, so do not create
   any, and never commit a key or a password to a repository.
 - **Clean up at the end** (step 9). It is graded.
@@ -79,7 +81,7 @@ python3 glue_job.py --input data --output output
 
 ### 4. S3: one bucket, one folder
 
-In the S3 console, create a bucket named `ridecity-<your student ID>` in `us-east-1`, with
+In the S3 console, create a bucket named `ridecity-<your student ID>` in your region, with
 the default settings (public access blocked). Open the bucket, click **Create folder** and
 name it `raw`. Open it, click **Upload**, and add the two files `datagen.py` generated on
 your machine: `data/trips_history.csv` and `data/zones.csv`.
