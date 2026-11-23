@@ -18,7 +18,7 @@ Account used (own account on the free plan, or Learner Lab):
 
 ## The Glue job
 
-The two lines printed by the job on Glue (from the Output logs):
+The two lines printed by the job on Glue (Run details, Cloudwatch logs, Output logs):
 
 ```
 
@@ -68,7 +68,7 @@ original CSV file than on your Parquet tables.
 ## Security
 
 The role used `AmazonS3FullAccess`. Write the IAM policy (JSON) that would give the job only
-what it needs: read `raw/` and `scripts/`, write `processed/`, in your bucket only.
+what it needs: read `raw/`, write `processed/`, in your bucket only.
 
 ```json
 

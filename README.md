@@ -13,6 +13,15 @@ know it.
 AWS: storage, permissions, running the job, the catalog, the queries, the costs and the
 cleanup.
 
+**Optional, worth 2 extra points. Opens Tuesday, November 24. Due by 11:59 pm on Tuesday,
+December 8**, on Canvas. Work individually. Plan for about 3 hours.
+
+```
+trips_history.csv, zones.csv  ->  S3 raw/  ->  Glue Spark job  ->  S3 processed/ (Parquet)
+                                                                        |
+                                              Athena (SQL)  <-  Glue crawler + Data Catalog
+```
+
 ---
 
 ## Before you start
@@ -77,13 +86,15 @@ can try it first, but this is optional:
 python3 glue_job.py --input data --output output
 ```
 
-### 4. S3: one bucket, three prefixes
+### 4. S3: one bucket, one folder
 
-Create a bucket named `ridecity-<your student ID>` in `us-east-1`, with the default
-settings (public access blocked). Upload:
+In the S3 console, create a bucket named `ridecity-<your student ID>` in `us-east-1`, with
+the default settings (public access blocked). Open the bucket, click **Create folder** and
+name it `raw`. Open it, click **Upload**, and add the two files `datagen.py` generated on
+your machine: `data/trips_history.csv` and `data/zones.csv`.
 
-- `data/trips_history.csv` and `data/zones.csv` to `raw/`
-- `glue_job.py` to `scripts/`
+The bucket now contains `raw/trips_history.csv` and `raw/zones.csv`. The job will create
+`processed/` itself.
 
 ### 5. IAM: a role for Glue
 
@@ -93,33 +104,39 @@ is broader than needed; the report asks you how you would restrict it.
 
 ### 6. Glue: run the job
 
-In AWS Glue, **ETL jobs**, **Script editor**, engine **Spark**, **Upload script** and
-choose your `glue_job.py`. Then, in **Job details**:
+Check the region selector first: it must show the region of your bucket. Then, in AWS Glue,
+**ETL jobs**, **Script editor**: engine **Spark**, option **Upload script**,
+**Choose file** and pick `glue_job.py` from your machine, then **Create script**. Then open the **Job details** tab:
 
 | Setting | Value |
 | ------- | ----- |
 | Name | `ridecity-a6` |
-| IAM Role | `ridecity-glue-role` |
+| IAM Role | click **Customize**, under the description, to show the role list, and choose `ridecity-glue-role` |
 | Glue version | 5.0 or later |
 | Worker type, number of workers | G.1X, 2 |
 | Job timeout | 10 minutes |
 | Number of retries | 0 |
-| Job parameters (under Advanced properties) | `--input` = `s3://ridecity-<your student ID>/raw` and `--output` = `s3://ridecity-<your student ID>/processed` |
+| Job parameters (at the end of Advanced properties) | two parameters, with **Add new parameter**: key `--input`, value `s3://ridecity-<your student ID>/raw`; key `--output`, value `s3://ridecity-<your student ID>/processed`. The keys include the two dashes. |
 
-Save and **Run**. In the **Runs** tab, wait for **Succeeded** (two to three minutes) and
-open the **Output logs**: the job prints `trips written: 60000   zone_daily rows: 750` and
-your total revenue. Write down the duration of the run.
+**Save**, then **Run**. In the **Runs** tab, wait for **Succeeded** (one to three minutes)
+and select the run. In the **Run details** panel below, note the **Execution time**, and
+under **Cloudwatch logs** click **Output logs**: the log stream named after the run shows
+what the job printed, `trips written: 60000   zone_daily rows: 750` and your total revenue.
+(The **Logs** panel next to Run details shows the messages of Spark and Glue, not these
+two lines.)
 
 In S3, `processed/trips/` now has thirty `pickup_date=...` folders. Select the `raw/`
 prefix, then **Actions**, **Calculate total size**; do the same for `processed/`. Write
 down the two sizes.
 
-If the run fails, read the **Error logs** link of the run. The usual causes are a wrong
-path in the job parameters, the wrong role, or the wrong region.
+If the run fails, read the **Logs** panel of the run. The usual causes: the job
+parameters are missing (`the following arguments are required: --input, --output`), a
+path is wrong, or the role was not selected (`Role should not be null or empty`).
 
 ### 7. Glue: catalog the result
 
-In AWS Glue, **Crawlers**, create `ridecity-crawler`: data source
+In AWS Glue, open the left menu (the icon at the top left, if it is collapsed) and choose
+**Crawlers**, under Data Catalog. Create `ridecity-crawler`: data source
 `s3://ridecity-<your student ID>/processed/`, role `ridecity-glue-role`, target database
 `ridecity_db` (create it from the same screen), on demand. Run it. It must create two
 tables, `trips` and `zone_daily`. Open `trips` and look at its schema: `pickup_date` is
@@ -131,23 +148,31 @@ Open Athena. The first time, set the query result location to
 `s3://ridecity-<your student ID>/athena-results/` (Settings). Choose the database
 `ridecity_db`.
 
-Run the three queries of `athena/q1.sql`, `q2.sql` and `q3.sql` (in `q3.sql`, replace
-`2026-09-DD` with your day first). For each one, use **Download results** to save the
-result as `results/q1.csv`, `results/q2.csv` and `results/q3.csv`, and write down the
-**Data scanned** value Athena shows.
+Run the three queries, one at a time: open `athena/q1.sql`, copy its content into the
+Athena query editor and click **Run**; then `q2.sql`; then `q3.sql`.
+
+Query 3 is about **your day**, the date `datagen.py` printed in step 2 (for example
+`your day for query 3: 2026-09-19`). The file contains the placeholder `2026-09-DD`:
+before running it, replace `DD` with the two digits of your day, so that the line reads,
+in this example, `WHERE pickup_date = '2026-09-19'`. Save the file with your day in it.
+
+For each query, use **Download results** to save the result as `results/q1.csv`,
+`results/q2.csv` and `results/q3.csv`, and write down the **Data scanned** value Athena
+shows.
 
 Then the experiment. Run these two queries and write down the **Data scanned** value of each:
 
 ```sql
 SELECT ROUND(SUM(fare), 2) FROM trips;
-SELECT ROUND(SUM(fare), 2) FROM trips WHERE pickup_date = '<your day, as 2026-09-DD>';
+SELECT ROUND(SUM(fare), 2) FROM trips WHERE pickup_date = '2026-09-DD';   -- DD: your day
 ```
 
 ### 9. Clean up
 
 Delete, in this order: the Glue job, the crawler, the database `ridecity_db` (with its
-tables), the bucket (empty it first) and the role. Then take the last screenshot: the S3
-bucket list without your bucket.
+tables), your bucket (empty it first), the bucket Glue created for the script and its logs
+(its name starts with `aws-glue-assets`; empty it first) and the role. Then take the last
+screenshot: the S3 bucket list without the two buckets.
 
 ### 10. Report and submit
 
